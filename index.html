@@ -1,0 +1,2227 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>행동관찰 기록 및 지원 도구</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for Dashboards -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            500: '#0284c7',
+                            600: '#0369a1',
+                            700: '#075985',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800&display=swap');
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            background-color: #f8fafc;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 9999px;
+        }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen flex flex-col antialiased">
+
+    <!-- Clean Professional Top Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="h-16 flex items-center justify-between gap-4">
+                <!-- App Title -->
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-clipboard-user"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-base sm:text-lg font-black text-slate-900 tracking-tight">행동기록도우미</h1>
+                        <p class="text-[11px] text-slate-500 hidden sm:block">ABC 관찰 · 빈도 및 강도 · 다중 지속시간 기록 및 AI 중재</p>
+                    </div>
+                </div>
+
+                <!-- Center/Right Action Bar: High-Visibility Current Student + Google Sync + Settings -->
+                <div class="flex items-center space-x-2.5">
+                    <!-- Current Student Picker (High Contrast & Large Indicator) -->
+                    <div class="flex items-center bg-blue-50 border-2 border-blue-500 rounded-xl px-3.5 py-1.5 shadow-sm">
+                        <span class="text-xs font-black text-blue-700 mr-2 flex items-center shrink-0">
+                            <i class="fa-solid fa-user-check mr-1.5 text-blue-600 text-sm"></i>현재 기록 대상:
+                        </span>
+                        <select id="studentSelect" class="bg-transparent text-base sm:text-lg font-black text-blue-950 outline-none cursor-pointer pr-1">
+                            <!-- Populated by JS -->
+                        </select>
+                        <button onclick="openStudentManageModal()" title="학생 목록 관리" class="ml-2.5 px-2 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center transition shadow-xs">
+                            <i class="fa-solid fa-user-gear mr-1 text-[11px]"></i>학생관리
+                        </button>
+                    </div>
+
+                    <!-- Direct Google Sheet Sync Trigger Button -->
+                    <button onclick="triggerGoogleDriveExport()" class="px-3.5 py-2 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-xl transition flex items-center shadow-xs">
+                        <i class="fa-solid fa-file-excel text-emerald-600 text-sm mr-1.5"></i>
+                        <span>구글 시트 저장</span>
+                    </button>
+
+                    <!-- Target Behavior Global Manager Button -->
+                    <button onclick="openTargetBehaviorManageModal()" title="표적행동 수정 및 설정" class="px-3.5 py-2 text-xs font-bold text-slate-800 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded-xl transition flex items-center shadow-xs">
+                        <i class="fa-solid fa-list-check text-amber-600 mr-1.5 text-sm"></i>
+                        <span>표적행동 설정</span>
+                    </button>
+
+                    <!-- Comprehensive Settings Modal Button -->
+                    <button onclick="openSettingsModal()" title="전체 설정 (구글 앱스 스크립트 / API)" class="px-3 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl transition flex items-center">
+                        <i class="fa-solid fa-sliders text-xs mr-1.5"></i>설정
+                    </button>
+                </div>
+            </div>
+
+            <!-- Top 3 Recording Categories Navigation -->
+            <nav class="flex space-x-1 border-t border-slate-100 overflow-x-auto text-sm font-semibold pt-1">
+                <button onclick="switchMainTab('abc')" id="mainTab-abc" class="main-tab-btn py-2.5 px-4 border-b-2 border-slate-900 text-slate-900 font-extrabold flex items-center whitespace-nowrap">
+                    <span class="w-5 h-5 rounded-md bg-slate-900 text-white flex items-center justify-center text-[11px] mr-2">1</span>
+                    ABC 사건 기록
+                </button>
+                <button onclick="switchMainTab('freq')" id="mainTab-freq" class="main-tab-btn py-2.5 px-4 border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center whitespace-nowrap">
+                    <span class="w-5 h-5 rounded-md bg-slate-200 text-slate-700 flex items-center justify-center text-[11px] mr-2">2</span>
+                    빈도 & 3단계 강도
+                </button>
+                <button onclick="switchMainTab('duration')" id="mainTab-duration" class="main-tab-btn py-2.5 px-4 border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center whitespace-nowrap">
+                    <span class="w-5 h-5 rounded-md bg-slate-200 text-slate-700 flex items-center justify-center text-[11px] mr-2">3</span>
+                    동시 지속시간 (스톱워치)
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+
+        <!-- =======================================================================
+             1. ABC RECORDING CENTER
+             ======================================================================= -->
+        <section id="center-abc" class="center-view space-y-5">
+            <div class="bg-white rounded-2xl p-4 sm:p-5 shadow-xs border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-base font-bold text-slate-900 flex items-center">
+                        <span class="w-2.5 h-2.5 rounded-full bg-slate-900 mr-2"></span>ABC (선행사건 - 행동 - 후속결과) 기록
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-0.5">행동 직전 요인(A)과 행동 후 반응(C)을 관찰하여 행동의 목적(기능)을 파악합니다.</p>
+                </div>
+                <div class="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl text-xs font-bold">
+                    <button onclick="switchSubTab('abc', 'record')" id="subTabBtn-abc-record" class="subtab-btn-abc px-3.5 py-1.5 rounded-lg bg-white text-slate-900 shadow-xs transition">
+                        기록 작성
+                    </button>
+                    <button onclick="switchSubTab('abc', 'dashboard')" id="subTabBtn-abc-dashboard" class="subtab-btn-abc px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition">
+                        통계 대시보드
+                    </button>
+                    <button onclick="switchSubTab('abc', 'ai')" id="subTabBtn-abc-ai" class="subtab-btn-abc px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition">
+                        AI 분석 및 중재안
+                    </button>
+                </div>
+            </div>
+
+            <!-- ABC Sub-View 1: Form & List -->
+            <div id="subView-abc-record" class="subview-abc grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Left Form Card -->
+                <div class="lg:col-span-7 bg-white rounded-2xl p-5 shadow-xs border border-slate-200 space-y-4">
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <h3 class="text-sm font-bold text-slate-900">
+                            관찰 일화 작성
+                        </h3>
+                        <span id="abcCurrentTime" class="text-xs font-mono bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-md border border-slate-200"></span>
+                    </div>
+
+                    <form id="abcForm" onsubmit="saveAbcRecord(event)" class="space-y-4">
+                        <!-- Antecedent (A) -->
+                        <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                            <label class="text-xs font-bold text-slate-700 block mb-1">
+                                [A] 선행사건 (Antecedent) - 행동 직전 상황이나 자극
+                            </label>
+                            <div class="flex flex-wrap gap-1.5 mb-2" id="presetTags-A"></div>
+                            <input type="text" id="abcAntecedent" placeholder="예: 문제 풀이 지시, 친구가 물건을 만짐" required
+                                   class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg border border-slate-300 focus:ring-1 focus:ring-slate-800 outline-none bg-white">
+                        </div>
+
+                        <!-- Behavior (B) -->
+                        <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                            <label class="text-xs font-bold text-slate-700 block mb-1">
+                                [B] 행동 (Behavior) - 관찰 가능한 구체적 외현 행동
+                            </label>
+                            <div class="flex flex-wrap gap-1.5 mb-2" id="presetTags-B"></div>
+                            <input type="text" id="abcBehavior" placeholder="예: 책상을 두 손으로 침, 소리를 지르고 교실 뒤로 이동" required
+                                   class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg border border-slate-300 focus:ring-1 focus:ring-slate-800 outline-none bg-white">
+                        </div>
+
+                        <!-- Consequence (C) -->
+                        <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                            <label class="text-xs font-bold text-slate-700 block mb-1">
+                                [C] 후속결과 (Consequence) - 행동 직후 교사/또래 반응 및 환경 변화
+                            </label>
+                            <div class="flex flex-wrap gap-1.5 mb-2" id="presetTags-C"></div>
+                            <input type="text" id="abcConsequence" placeholder="예: 구두 주의, 진정 공간으로 분리, 잠시 과제 면제" required
+                                   class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg border border-slate-300 focus:ring-1 focus:ring-slate-800 outline-none bg-white">
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 mb-1">장소 / 교시</label>
+                                <input type="text" id="abcContext" placeholder="예: 2교시 수학 (일반교실)" class="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 focus:ring-1 focus:ring-slate-800 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 mb-1">추정 가설 (행동 기능)</label>
+                                <select id="abcHypothesis" class="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 focus:ring-1 focus:ring-slate-800 outline-none bg-white font-medium">
+                                    <option value="과제/활동 회피">과제/활동 회피 (어려움 또는 피로)</option>
+                                    <option value="교사/또래 관심 획득">교사/또래 관심 획득</option>
+                                    <option value="선호 사물/활동 획득">선호 사물/놀이 획득</option>
+                                    <option value="감각 자극 조절">감각 자극 조절 (과민/불편)</option>
+                                    <option value="기타/추가 관찰 요망">추가 관찰 필요</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end pt-1">
+                            <button type="submit" class="w-full sm:w-auto px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition flex items-center justify-center">
+                                <i class="fa-solid fa-check mr-1.5"></i>일화 기록 저장
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Right Records Feed Card -->
+                <div class="lg:col-span-5 bg-white rounded-2xl p-5 shadow-xs border border-slate-200 flex flex-col h-[620px]">
+                    <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+                        <h3 class="text-sm font-bold text-slate-900 flex items-center">
+                            누적 일화 목록
+                            <span id="abcCountBadge" class="ml-2 px-2 py-0.5 text-xs bg-slate-100 text-slate-800 font-extrabold rounded-md">0건</span>
+                        </h3>
+                        <button onclick="clearStudentRecords('abc')" class="text-xs text-rose-600 hover:text-rose-800 transition">
+                            전체삭제
+                        </button>
+                    </div>
+                    <div id="abcRecordsContainer" class="flex-1 overflow-y-auto custom-scrollbar space-y-2.5 pr-1"></div>
+                </div>
+            </div>
+
+            <!-- ABC Sub-View 2: Dedicated Dashboard -->
+            <div id="subView-abc-dashboard" class="subview-abc hidden space-y-6">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-xs">
+                        <div class="text-xs font-semibold text-slate-400">누적 관찰 건수</div>
+                        <div id="kpiAbcTotal" class="text-2xl font-black text-slate-900 mt-1">0건</div>
+                    </div>
+                    <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-xs">
+                        <div class="text-xs font-semibold text-slate-400">최다 추정 기능</div>
+                        <div id="kpiAbcTopFunction" class="text-sm font-bold text-slate-900 mt-1 truncate">기록 없음</div>
+                    </div>
+                    <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-xs">
+                        <div class="text-xs font-semibold text-slate-400">빈출 상황/교시</div>
+                        <div id="kpiAbcTopContext" class="text-sm font-bold text-slate-900 mt-1 truncate">기록 없음</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+                        <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">행동 목적(기능) 분포</h3>
+                        <div class="h-64 relative flex items-center justify-center">
+                            <canvas id="chartAbcFunctions"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+                        <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">빈출 선행사건(A) 상위 요인</h3>
+                        <div class="h-64 relative flex items-center justify-center">
+                            <canvas id="chartAbcAntecedents"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ABC Sub-View 3: AI Analysis -->
+            <div id="subView-abc-ai" class="subview-abc hidden space-y-5">
+                <div class="bg-slate-900 rounded-2xl p-5 sm:p-6 text-white shadow-xs">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Gemini 3 Flash 분석 엔진</div>
+                            <h3 class="text-base sm:text-lg font-bold text-white mt-1">ABC 인과 연쇄 분석 및 행동 중재안 생성</h3>
+                            <p class="text-xs text-slate-300 mt-1">기록된 일화를 바탕으로 행동의 기능 가설을 수립하고 환경 수정 전략 및 학부모 상담 요점을 작성합니다.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button id="btnAiAbc" onclick="runAiAnalysisForAbc()" class="px-4 py-2.5 bg-white text-slate-900 hover:bg-slate-100 font-bold rounded-xl text-xs transition flex items-center shrink-0">
+                                <i class="fa-solid fa-sparkles text-amber-500 mr-1.5"></i>분석 실행
+                            </button>
+                            <span id="statusAiAbc" class="text-xs text-slate-400"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="aiAbcPlaceholder" class="bg-white rounded-2xl p-8 text-center border border-dashed border-slate-300">
+                    <p class="text-xs text-slate-500">기록된 데이터를 기반으로 분석 리포트를 생성하려면 상단의 [분석 실행]을 클릭하세요.</p>
+                </div>
+                <div id="aiAbcResults" class="hidden space-y-4">
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-800 mb-2">1. ABC 인과 연쇄 및 기능 분석</h4>
+                        <div id="aiAbcOutputFunc" class="text-xs sm:text-sm text-slate-700 whitespace-pre-line bg-slate-50 p-3.5 rounded-xl border border-slate-200"></div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-800 mb-2">2. 선행사건 수정 및 대체행동 교수 전략</h4>
+                        <div id="aiAbcOutputIntervention" class="text-xs sm:text-sm text-slate-700 whitespace-pre-line bg-slate-50 p-3.5 rounded-xl border border-slate-200"></div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-800 mb-2">3. 학부모 상담 공유 요점 및 가정 협력 전략</h4>
+                        <div id="aiAbcOutputParent" class="text-xs sm:text-sm text-slate-700 whitespace-pre-line bg-slate-50 p-3.5 rounded-xl border border-slate-200"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- =======================================================================
+             2. FREQUENCY & INTENSITY CENTER
+             ======================================================================= -->
+        <section id="center-freq" class="center-view hidden space-y-5">
+            <div class="bg-white rounded-2xl p-4 sm:p-5 shadow-xs border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-base font-bold text-slate-900 flex items-center">
+                        <span class="w-2.5 h-2.5 rounded-full bg-blue-600 mr-2"></span>빈도 & 3단계 강도 기록
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-0.5">행동 발생 즉시 강도(초록/노랑/빨강)를 1회 탭하여 빈도와 심각도를 기록합니다.</p>
+                </div>
+                <div class="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl text-xs font-bold">
+                    <button onclick="switchSubTab('freq', 'record')" id="subTabBtn-freq-record" class="subtab-btn-freq px-3.5 py-1.5 rounded-lg bg-white text-slate-900 shadow-xs transition">
+                        체크 패널
+                    </button>
+                    <button onclick="switchSubTab('freq', 'dashboard')" id="subTabBtn-freq-dashboard" class="subtab-btn-freq px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition">
+                        통계 대시보드
+                    </button>
+                    <button onclick="switchSubTab('freq', 'ai')" id="subTabBtn-freq-ai" class="subtab-btn-freq px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition">
+                        AI 분석 및 중재안
+                    </button>
+                </div>
+            </div>
+
+            <!-- Frequency Sub-View 1: Record -->
+            <div id="subView-freq-record" class="subview-freq space-y-5">
+                <!-- Color Legend Badge -->
+                <div class="bg-white border border-slate-200 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 shadow-xs text-xs">
+                    <span class="font-bold text-slate-700">강도 3단계 판별 기준:</span>
+                    <div class="flex items-center gap-2">
+                        <span class="px-2.5 py-1 rounded-lg bg-emerald-600 text-white font-bold flex items-center">
+                            1단계: 약 (주의 환기로 스스로 멈춤)
+                        </span>
+                        <span class="px-2.5 py-1 rounded-lg bg-amber-500 text-slate-900 font-bold flex items-center">
+                            2단계: 중 (직접적 교사 개입/분리 필요)
+                        </span>
+                        <span class="px-2.5 py-1 rounded-lg bg-red-600 text-white font-bold flex items-center">
+                            3단계: 강 (위험 행동 / 심각한 수업 중단)
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Frequency Target Behaviors Grid -->
+                <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+                    <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-900">표적 행동 3색 원클릭 체크</h3>
+                            <p class="text-xs text-slate-500">행동이 일어난 시점에 해당 강도 버튼을 누릅니다.</p>
+                        </div>
+                        <button onclick="openTargetBehaviorManageModal()" class="px-3 py-1.5 text-xs font-bold text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded-lg transition flex items-center">
+                            <i class="fa-solid fa-pen-to-square mr-1.5 text-amber-600"></i>표적행동 수정 및 추가
+                        </button>
+                    </div>
+                    <div id="frequencyTargetGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+                </div>
+
+                <!-- Frequency Timeline Log -->
+                <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+                    <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                        <h3 class="text-sm font-bold text-slate-900 flex items-center">
+                            발생 로그 타임라인
+                            <span id="freqCountBadge" class="ml-2 px-2 py-0.5 text-xs bg-slate-100 text-slate-800 font-bold rounded-md">0건</span>
+                        </h3>
+                        <button onclick="clearStudentRecords('freq')" class="text-xs text-rose-600 hover:text-rose-800 transition">
+                            전체삭제
+                        </button>
+                    </div>
+                    <div id="frequencyLogList" class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar"></div>
+                </div>
+            </div>
+
+            <!-- Frequency Sub-View 2: Dedicated Dashboard -->
+            <div id="subView-freq-dashboard" class="subview-freq hidden space-y-6">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-xs">
+                        <div class="text-xs font-semibold text-slate-400">총 발생 빈도</div>
+                        <div id="kpiFreqTotal" class="text-2xl font-black text-slate-900 mt-1">0회</div>
+                    </div>
+                    <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-xs">
+                        <div class="text-xs font-semibold text-slate-400">3단계(강/빨강) 비율</div>
+                        <div id="kpiFreqHighRiskRate" class="text-2xl font-black text-red-600 mt-1">0%</div>
+                    </div>
+                    <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-xs">
+                        <div class="text-xs font-semibold text-slate-400">최다 발생 행동</div>
+                        <div id="kpiFreqTopBehavior" class="text-sm font-bold text-slate-900 mt-1 truncate">기록 없음</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+                        <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">강도 3단계 분포</h3>
+                        <div class="h-64 relative flex items-center justify-center">
+                            <canvas id="chartFreqIntensity"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+                        <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">행동별 발생 빈도</h3>
+                        <div class="h-64 relative flex items-center justify-center">
+                            <canvas id="chartFreqBehaviors"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Frequency Sub-View 3: AI Analysis -->
+            <div id="subView-freq-ai" class="subview-freq hidden space-y-5">
+                <div class="bg-slate-900 rounded-2xl p-5 sm:p-6 text-white shadow-xs">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Gemini 3 Flash 분석 엔진</div>
+                            <h3 class="text-base sm:text-lg font-bold text-white mt-1">빈도 추세 및 차별강화(DRA) 조언</h3>
+                            <p class="text-xs text-slate-300 mt-1">행동 발생 빈도와 강도(3단계) 비율을 수치 기반으로 분석하여 행동 감축 중재 방안을 도출합니다.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button id="btnAiFreq" onclick="runAiAnalysisForFreq()" class="px-4 py-2.5 bg-white text-slate-900 hover:bg-slate-100 font-bold rounded-xl text-xs transition flex items-center shrink-0">
+                                <i class="fa-solid fa-sparkles text-amber-500 mr-1.5"></i>분석 실행
+                            </button>
+                            <span id="statusAiFreq" class="text-xs text-slate-400"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="aiFreqPlaceholder" class="bg-white rounded-2xl p-8 text-center border border-dashed border-slate-300">
+                    <p class="text-xs text-slate-500">빈도 및 강도 기록을 바탕으로 분석을 진행하려면 [분석 실행]을 누르세요.</p>
+                </div>
+                <div id="aiFreqResults" class="hidden space-y-4">
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-800 mb-2">1. 행동 강도 및 심각도 분석</h4>
+                        <div id="aiFreqOutputFunc" class="text-xs sm:text-sm text-slate-700 whitespace-pre-line bg-slate-50 p-3.5 rounded-xl border border-slate-200"></div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-800 mb-2">2. 빈도 완화를 위한 차별강화(DRA/DRL) 지침</h4>
+                        <div id="aiFreqOutputIntervention" class="text-xs sm:text-sm text-slate-700 whitespace-pre-line bg-slate-50 p-3.5 rounded-xl border border-slate-200"></div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-800 mb-2">3. 학부모 상담 공유 요점</h4>
+                        <div id="aiFreqOutputParent" class="text-xs sm:text-sm text-slate-700 whitespace-pre-line bg-slate-50 p-3.5 rounded-xl border border-slate-200"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- =======================================================================
+             3. DURATION RECORDING CENTER
+             ======================================================================= -->
+        <section id="center-duration" class="center-view hidden space-y-5">
+            <div class="bg-white rounded-2xl p-4 sm:p-5 shadow-xs border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-base font-bold text-slate-900 flex items-center">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-600 mr-2"></span>행동별 동시 지속시간 (스톱워치)
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-0.5">여러 표적행동이 동시에 나타나도 각각의 독립 스톱워치로 지속시간을 동시 계측합니다.</p>
+                </div>
+                <div class="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl text-xs font-bold">
+                    <button onclick="switchSubTab('duration', 'record')" id="subTabBtn-duration-record" class="subtab-btn-duration px-3.5 py-1.5 rounded-lg bg-white text-slate-900 shadow-xs transition">
+                        동시 스톱워치
+                    </button>
+                    <button onclick="switchSubTab('duration', 'dashboard')" id="subTabBtn-duration-dashboard" class="subtab-btn-duration px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition">
+                        통계 대시보드
+                    </button>
+                    <button onclick="switchSubTab('duration', 'ai')" id="subTabBtn-duration-ai" class="subtab-btn-duration px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition">
+                        AI 분석 및 중재안
+                    </button>
+                </div>
+            </div>
+
+            <!-- Duration Sub-View 1: Multi-Stopwatches -->
+            <div id="subView-duration-record" class="subview-duration space-y-5">
+                <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 mb-4 border-b border-slate-100 gap-2">
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-900 flex items-center">
+                                행동별 독립 스톱워치
+                                <span id="activeTimersCountBadge" class="ml-2 px-2 py-0.5 text-xs bg-emerald-100 text-emerald-800 font-bold rounded-md hidden">
+                                    0개 계측 중
+                                </span>
+                            </h3>
+                            <p class="text-xs text-slate-500">행동 발생 시 [시작], 진정 시 [종료 및 저장]을 누르면 초 단위로 자동 누적됩니다.</p>
+                        </div>
+                        <button onclick="openTargetBehaviorManageModal()" class="px-3 py-1.5 text-xs font-bold text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded-lg transition flex items-center">
+                            <i class="fa-solid fa-pen-to-square mr-1.5 text-amber-600"></i>표적행동 수정 및 추가
+                        </button>
+                    </div>
+
+                    <!-- Individual Stopwatch Cards Grid -->
+                    <div id="durationStopwatchGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+
+                    <!-- Manual Duration fallback -->
+                    <details class="mt-5 text-xs text-slate-500 pt-3 border-t border-slate-100">
+                        <summary class="cursor-pointer hover:text-slate-800 font-semibold select-none flex items-center">
+                            <i class="fa-regular fa-keyboard mr-1.5"></i>사후 수동으로 지속시간(초) 입력하기
+                        </summary>
+                        <div class="pt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            <select id="manualDurationBehaviorSelect" class="px-3 py-2 text-xs border border-slate-300 rounded-lg outline-none bg-white">
+                                <!-- Populated by JS -->
+                            </select>
+                            <input type="number" id="manualDurationSeconds" placeholder="지속시간 (초 단위)" class="px-3 py-2 text-xs border border-slate-300 rounded-lg outline-none">
+                            <button onclick="addManualDurationRecord()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition">
+                                수동 추가
+                            </button>
+                        </div>
+                    </details>
+                </div>
+
+                <!-- Duration History -->
+                <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200 flex flex-col">
+                    <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+                        <h3 class="text-sm font-bold text-slate-900 flex items-center">
+                            지속시간 측정 기록
+                            <span id="durationCountBadge" class="ml-2 px-2 py-0.5 text-xs bg-slate-100 text-slate-800 font-bold rounded-md">0건</span>
+                        </h3>
+                        <button onclick="clearStudentRecords('duration')" class="text-xs text-rose-600 hover:text-rose-800 transition">
+                            전체삭제
+                        </button>
+                    </div>
+                    <div id="durationRecordsContainer" class="max-h-72 overflow-y-auto custom-scrollbar space-y-2 pr-1"></div>
+                </div>
+            </div>
+
+            <!-- Duration Sub-View 2: Dedicated Dashboard -->
+            <div id="subView-duration-dashboard" class="subview-duration hidden space-y-6">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-xs">
+                        <div class="text-xs font-semibold text-slate-400">총 누적 지속시간</div>
+                        <div id="kpiDurationTotal" class="text-2xl font-black text-slate-900 mt-1">0분</div>
+                    </div>
+                    <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-xs">
+                        <div class="text-xs font-semibold text-slate-400">평균 진정 소요시간</div>
+                        <div id="kpiDurationAvg" class="text-2xl font-black text-slate-900 mt-1">0초</div>
+                    </div>
+                    <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-xs">
+                        <div class="text-xs font-semibold text-slate-400">최장 지속 사건</div>
+                        <div id="kpiDurationMax" class="text-sm font-bold text-rose-600 mt-2 truncate">0초</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+                        <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">사건별 지속시간 변화 추이 (초)</h3>
+                        <div class="h-64 relative flex items-center justify-center">
+                            <canvas id="chartDurationTimeline"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+                        <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">행동별 총 지속시간 비율</h3>
+                        <div class="h-64 relative flex items-center justify-center">
+                            <canvas id="chartDurationByBehavior"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Duration Sub-View 3: AI Analysis -->
+            <div id="subView-duration-ai" class="subview-duration hidden space-y-5">
+                <div class="bg-slate-900 rounded-2xl p-5 sm:p-6 text-white shadow-xs">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Gemini 3 Flash 분석 엔진</div>
+                            <h3 class="text-base sm:text-lg font-bold text-white mt-1">진정 지연 요인 분석 및 이완 중재 가이드</h3>
+                            <p class="text-xs text-slate-300 mt-1">행동 지속시간 데이터를 토대로 회복 및 자가 진정 지연 요인을 파악하고 중재법을 제시합니다.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button id="btnAiDuration" onclick="runAiAnalysisForDuration()" class="px-4 py-2.5 bg-white text-slate-900 hover:bg-slate-100 font-bold rounded-xl text-xs transition flex items-center shrink-0">
+                                <i class="fa-solid fa-sparkles text-amber-500 mr-1.5"></i>분석 실행
+                            </button>
+                            <span id="statusAiDuration" class="text-xs text-slate-400"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="aiDurationPlaceholder" class="bg-white rounded-2xl p-8 text-center border border-dashed border-slate-300">
+                    <p class="text-xs text-slate-500">지속시간 데이터를 토대로 분석을 진행하려면 [분석 실행]을 클릭하세요.</p>
+                </div>
+                <div id="aiDurationResults" class="hidden space-y-4">
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-800 mb-2">1. 행동 지속 장기화 요인 분석</h4>
+                        <div id="aiDurationOutputFunc" class="text-xs sm:text-sm text-slate-700 whitespace-pre-line bg-slate-50 p-3.5 rounded-xl border border-slate-200"></div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-800 mb-2">2. 진정 소요시간 단축 및 자가진정 지도법</h4>
+                        <div id="aiDurationOutputIntervention" class="text-xs sm:text-sm text-slate-700 whitespace-pre-line bg-slate-50 p-3.5 rounded-xl border border-slate-200"></div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-800 mb-2">3. 학부모 상담 공유 요점</h4>
+                        <div id="aiDurationOutputParent" class="text-xs sm:text-sm text-slate-700 whitespace-pre-line bg-slate-50 p-3.5 rounded-xl border border-slate-200"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal: Comprehensive Settings (Google Apps Script / Gemini API) -->
+    <div id="settingsModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[90vh] flex flex-col">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center text-sm">
+                        <i class="fa-solid fa-sliders"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900">시스템 연동 설정</h3>
+                        <p class="text-[11px] text-slate-500">Google Apps Script 구글 드라이브 연동 및 Gemini API 설정</p>
+                    </div>
+                </div>
+                <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-600 text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Settings Sub-Tabs -->
+            <div class="flex border-b border-slate-200 space-x-4 text-xs font-bold">
+                <button onclick="switchSettingsTab('gas')" id="setTabBtn-gas" class="py-2 border-b-2 border-slate-900 text-slate-900">
+                    <i class="fa-solid fa-cloud-arrow-up mr-1.5 text-emerald-600"></i>구글 앱스 스크립트(GAS) 연동
+                </button>
+                <button onclick="switchSettingsTab('api')" id="setTabBtn-api" class="py-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800">
+                    <i class="fa-solid fa-key mr-1.5 text-amber-500"></i>Gemini API 설정
+                </button>
+            </div>
+
+            <!-- Settings Content Container -->
+            <div class="flex-1 overflow-y-auto custom-scrollbar pr-1 space-y-4 text-xs">
+                <!-- Tab 1: Google Apps Script -->
+                <div id="setTabContent-gas" class="space-y-4">
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
+                        <div class="font-bold text-slate-800">구글 드라이브 연동 웹앱 URL</div>
+                        <p class="text-slate-500 leading-relaxed">
+                            Google Apps Script로 배포한 웹앱 URL을 입력하시면, 앱 상단의 <strong>[구글 시트 저장]</strong> 클릭 시 선생님 구글 드라이브에 스프레드시트가 자동 생성되며 학생별 탭과 헤더가 자동으로 기록됩니다.
+                        </p>
+                        <div class="flex gap-2">
+                            <input type="url" id="gasAppUrlInput" placeholder="https://script.google.com/macros/s/.../exec"
+                                   class="flex-1 text-xs px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-1 focus:ring-slate-900 font-mono">
+                            <button onclick="saveGasSettings()" class="px-4 py-2 bg-slate-900 text-white font-bold rounded-lg hover:bg-slate-800 transition">
+                                저장
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Step-by-Step GAS Deployment Guide -->
+                    <div class="border border-slate-200 rounded-xl p-4 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-slate-800">
+                                <i class="fa-solid fa-circle-info text-blue-600 mr-1.5"></i>구글 앱스 스크립트(GAS) 설정 3단계 안내
+                            </span>
+                            <button onclick="copyGasScriptCode()" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 text-[11px] font-bold rounded-md transition flex items-center">
+                                <i class="fa-solid fa-copy mr-1"></i>스크립트 코드 복사
+                            </button>
+                        </div>
+
+                        <ol class="list-decimal list-inside space-y-1.5 text-slate-600 pl-1">
+                            <li><a href="https://script.google.com" target="_blank" class="text-blue-600 font-bold underline">script.google.com</a>에 접속하여 <strong>[새 프로젝트]</strong>를 만듭니다.</li>
+                            <li>기존 코드를 모두 지우고, 아래의 <strong>[코드 복사]</strong> 버튼을 눌러 복사한 스크립트를 붙여넣고 저장합니다.</li>
+                            <li>우측 상단 <strong>[배포] → [새 배포]</strong> 선택 후, 톱니바퀴에서 <strong>웹앱(Web app)</strong>을 선택합니다.
+                                <ul class="list-disc list-inside pl-4 text-slate-500 mt-0.5">
+                                    <li>다음 사용자 계정으로 실행: <strong>나(내 계정)</strong></li>
+                                    <li>액세스 권한이 있는 사용자: <strong>모든 사용자(Anyone)</strong></li>
+                                </ul>
+                            </li>
+                            <li>생성된 <strong>웹앱 URL</strong>을 복사하여 위의 입력창에 붙여넣고 [저장]을 누릅니다.</li>
+                        </ol>
+
+                        <div class="relative">
+                            <pre id="gasScriptCodeBlock" class="p-3 bg-slate-900 text-slate-100 rounded-lg text-[10px] font-mono overflow-x-auto max-h-48 custom-scrollbar">function doPost(e) {
+  try {
+    var data = JSON.parse(e.postData.contents);
+    var now = new Date();
+    var dateString = Utilities.formatDate(now, "Asia/Seoul", "yyyy-MM-dd_HHmm");
+    
+    // 1. 구글 드라이브에 새 스프레드시트 생성
+    var ss = SpreadsheetApp.create("[행동기록부] " + dateString);
+    var defaultSheet = ss.getActiveSheet();
+    
+    // 2. 학생별 개별 시트(탭) 생성 및 데이터 기입
+    data.students.forEach(function(student, index) {
+      var sheet = ss.insertSheet(student.name);
+      
+      // A. 헤더 스타일 지정
+      var headerStyle = SpreadsheetApp.newTextStyle().setBold(true).build();
+      
+      // 1) ABC 관찰 기록 헤더
+      sheet.appendRow(["[1. ABC 사건 관찰 기록]"]);
+      sheet.appendRow(["일자", "시각", "장소/교시", "선행사건(A)", "행동(B)", "후속결과(C)", "추정목적(기능)"]);
+      var abcRange = sheet.getRange(sheet.getLastRow(), 1, 1, 7);
+      abcRange.setBackground("#e2e8f0").setTextStyle(headerStyle);
+      
+      if (student.abcRecords && student.abcRecords.length > 0) {
+        student.abcRecords.forEach(function(r) {
+          sheet.appendRow([r.date, r.time, r.context, r.antecedent, r.behavior, r.consequence, r.hypothesis]);
+        });
+      } else {
+        sheet.appendRow(["(기록 없음)"]);
+      }
+      
+      sheet.appendRow([]); // 빈 줄
+      
+      // 2) 빈도 및 강도 기록 헤더
+      sheet.appendRow(["[2. 빈도 및 3단계 강도 기록]"]);
+      sheet.appendRow(["일자", "시각", "표적행동명", "강도수준(1~3)", "강도명칭"]);
+      var freqRange = sheet.getRange(sheet.getLastRow(), 1, 1, 5);
+      freqRange.setBackground("#e2e8f0").setTextStyle(headerStyle);
+      
+      if (student.freqRecords && student.freqRecords.length > 0) {
+        student.freqRecords.forEach(function(r) {
+          sheet.appendRow([r.date, r.time, r.behaviorName, r.intensity, r.levelName]);
+        });
+      } else {
+        sheet.appendRow(["(기록 없음)"]);
+      }
+      
+      sheet.appendRow([]); // 빈 줄
+      
+      // 3) 지속시간(스톱워치) 계측 헤더
+      sheet.appendRow(["[3. 표적행동별 지속시간 기록]"]);
+      sheet.appendRow(["일자", "시작시각", "종료시각", "표적행동명", "지속시간(초)", "환산시간"]);
+      var durRange = sheet.getRange(sheet.getLastRow(), 1, 1, 6);
+      durRange.setBackground("#e2e8f0").setTextStyle(headerStyle);
+      
+      if (student.durationRecords && student.durationRecords.length > 0) {
+        student.durationRecords.forEach(function(r) {
+          sheet.appendRow([r.date, r.startTime, r.endTime, r.behaviorName, r.durationSeconds, r.durationFormatted]);
+        });
+      } else {
+        sheet.appendRow(["(기록 없음)"]);
+      }
+      
+      // 열 너비 자동 맞춤
+      for (var col = 1; col <= 7; col++) {
+        sheet.autoResizeColumn(col);
+      }
+    });
+    
+    // 기본 생성된 빈 시트 제거
+    try { ss.deleteSheet(defaultSheet); } catch(err) {}
+    
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "success",
+      url: ss.getUrl()
+    })).setMimeType(ContentService.MimeType.JSON);
+    
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "error",
+      message: error.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}</pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Gemini API -->
+                <div id="setTabContent-api" class="hidden space-y-4">
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
+                        <div class="font-bold text-slate-800">Gemini API Key</div>
+                        <p class="text-slate-500 leading-relaxed">
+                            기본 무료 환경에서 구동되며, Google AI Studio에서 발급받은 개인 API Key를 등록하여 사용하실 수도 있습니다.
+                        </p>
+                        <div class="flex gap-2">
+                            <input type="password" id="customApiKeyInput" placeholder="AIzaSy... (비워둘 시 기본 환경 자동 사용)"
+                                   class="flex-1 text-xs px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-1 focus:ring-slate-900 font-mono">
+                            <button onclick="saveApiSettings()" class="px-4 py-2 bg-slate-900 text-white font-bold rounded-lg hover:bg-slate-800 transition">
+                                저장
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end pt-2 border-t border-slate-100">
+                <button onclick="closeSettingsModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-xs">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Manage Students -->
+    <div id="studentManageModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 class="text-sm font-bold text-slate-900 flex items-center">
+                    <i class="fa-solid fa-users mr-2 text-blue-600"></i>학생 명단 관리
+                </h3>
+                <button onclick="closeStudentManageModal()" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="space-y-3">
+                <div class="flex gap-2">
+                    <input type="text" id="newStudentInput" placeholder="학생 이름 (예: 김민준)" class="flex-1 text-xs px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-1 focus:ring-slate-900">
+                    <button onclick="addNewStudent()" class="px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 transition">추가</button>
+                </div>
+                <div class="text-xs text-slate-500 font-bold">등록된 학생 목록 (클릭 시 해당 학생 기록으로 즉시 이동):</div>
+                <ul id="modalStudentList" class="space-y-1.5 max-h-56 overflow-y-auto custom-scrollbar"></ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Comprehensive Target Behavior Management (Add, Edit, Delete) -->
+    <div id="targetBehaviorManageModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[90vh] flex flex-col">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 rounded-lg bg-amber-500 text-slate-900 flex items-center justify-center text-sm font-bold">
+                        <i class="fa-solid fa-list-check"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900">표적 행동 설정 및 수정</h3>
+                        <p class="text-[11px] text-slate-500">빈도 체크 버튼과 지속시간 스톱워치에 연동되는 표적 행동을 관리합니다.</p>
+                    </div>
+                </div>
+                <button onclick="closeTargetBehaviorManageModal()" class="text-slate-400 hover:text-slate-600 text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- New Target Behavior Form -->
+            <form onsubmit="handleCreateTargetBehavior(event)" class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2.5">
+                <div class="text-xs font-bold text-slate-700 flex items-center">
+                    <i class="fa-solid fa-plus-circle text-emerald-600 mr-1.5"></i>새 표적 행동 등록
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                    <div class="sm:col-span-5">
+                        <input type="text" id="manageNewBehaviorName" placeholder="행동 이름 (예: 자리 이탈)" required
+                               class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg outline-none bg-white focus:ring-1 focus:ring-slate-900">
+                    </div>
+                    <div class="sm:col-span-5">
+                        <input type="text" id="manageNewBehaviorDesc" placeholder="조작적 정의 (구체적 관찰 기준)"
+                               class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg outline-none bg-white focus:ring-1 focus:ring-slate-900">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <button type="submit" class="w-full h-full py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition flex items-center justify-center">
+                            추가
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Existing Target Behaviors List with Inline Edit & Delete -->
+            <div class="flex-1 overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
+                <div class="text-xs font-bold text-slate-700 flex items-center justify-between">
+                    <span>등록된 표적 행동 목록 (<span id="targetBehaviorTotalCount">0</span>개)</span>
+                    <span class="text-[11px] text-slate-400 font-normal">이름과 설명을 바로 클릭하여 수정 후 [수정완료]를 누르세요.</span>
+                </div>
+                <div id="targetBehaviorManageList" class="space-y-2">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <div class="flex justify-end pt-2 border-t border-slate-100">
+                <button onclick="closeTargetBehaviorManageModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-xs">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-24 opacity-0 transition-all duration-300 bg-slate-900 text-white text-xs font-bold px-4 py-3 rounded-xl shadow-xl flex items-center space-x-2.5">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-sm"></i>
+        <span id="toastMsg">알림 메시지</span>
+    </div>
+
+    <script>
+        /* ==========================================================================
+           Application State & Initial Data
+           ========================================================================== */
+        const APP_DATA = {
+            currentStudentId: 'student_1',
+            students: [
+                { id: 'student_1', name: '김민준' },
+                { id: 'student_2', name: '이서아' },
+                { id: 'student_3', name: '박도현' }
+            ],
+            targetBehaviors: [
+                { id: 'tb_1', name: '수업 중 소리지르기', desc: '허가받지 않은 상황에서 고성을 지름' },
+                { id: 'tb_2', name: '자리 이탈 및 배회', desc: '착석 지시 불응 후 교실 안이나 밖을 배회함' },
+                { id: 'tb_3', name: '책상 치기 / 물건 던지기', desc: '손 또는 물건으로 책상을 가격하거나 던짐' },
+                { id: 'tb_4', name: '과제 거부 및 엎드리기', desc: '과제 지시 후 반응 없이 엎드려 있음' }
+            ],
+            abcRecords: {
+                'student_1': [
+                    { id: 'a1', date: new Date().toISOString().split('T')[0], time: '10:15', context: '1교시 국어', antecedent: '어려운 읽기 과제 제시', behavior: '책상을 주먹으로 치고 소리지름', consequence: '주의를 주고 과제를 쉬게 함', hypothesis: '과제/활동 회피' },
+                    { id: 'a2', date: new Date().toISOString().split('T')[0], time: '11:20', context: '2교시 수학', antecedent: '짝꿍이 지우개를 빌려주지 않음', behavior: '자리에서 일어나 짝꿍을 밀침', consequence: '진정 공간으로 유도 분리', hypothesis: '교사/또래 관심 획득' }
+                ],
+                'student_2': [],
+                'student_3': []
+            },
+            freqRecords: {
+                'student_1': [
+                    { id: 'f1', date: new Date().toISOString().split('T')[0], time: '09:40:12', behaviorId: 'tb_1', behaviorName: '수업 중 소리지르기', intensity: 1, levelName: '약(1단계)' },
+                    { id: 'f2', date: new Date().toISOString().split('T')[0], time: '10:30:25', behaviorId: 'tb_1', behaviorName: '수업 중 소리지르기', intensity: 2, levelName: '중(2단계)' },
+                    { id: 'f3', date: new Date().toISOString().split('T')[0], time: '11:35:50', behaviorId: 'tb_3', behaviorName: '책상 치기 / 물건 던지기', intensity: 3, levelName: '강(3단계)' }
+                ],
+                'student_2': [],
+                'student_3': []
+            },
+            durationRecords: {
+                'student_1': [
+                    { id: 'd1', date: new Date().toISOString().split('T')[0], startTime: '09:10:00', endTime: '09:13:30', behaviorName: '자리 이탈 및 배회', durationSeconds: 210, durationFormatted: '3분 30초' },
+                    { id: 'd2', date: new Date().toISOString().split('T')[0], startTime: '11:00:00', endTime: '11:05:15', behaviorName: '과제 거부 및 엎드리기', durationSeconds: 315, durationFormatted: '5분 15초' }
+                ],
+                'student_2': [],
+                'student_3': []
+            }
+        };
+
+        const ABC_PRESETS = {
+            antecedent: ['교사의 과제 지시', '어려운 문제 제시', '자유활동 종료 지시', '또래와의 갈등', '자리 착석 요구', '소음 발생'],
+            behavior: ['소리지르기', '책상 치기', '자리 이탈하기', '물건 던지기', '귀 막고 엎드리기', '친구 밀치기'],
+            consequence: ['구두 경고/주의', '과제 난이도 조정', '진정 공간 이동', '잠시 과제 면제', '원하는 활동 제공']
+        };
+
+        const MULTI_TIMERS = {};
+        let customGeminiApiKey = "";
+        let gasWebhookUrl = "";
+
+        const CHARTS = {
+            abcFunctions: null,
+            abcAntecedents: null,
+            freqIntensity: null,
+            freqBehaviors: null,
+            durationTimeline: null,
+            durationByBehavior: null
+        };
+
+        window.onload = function() {
+            initStudentSelect();
+            initAbcPresets();
+            renderAllForCurrentStudent();
+            startLiveClock();
+        };
+
+        function startLiveClock() {
+            const clockEl = document.getElementById('abcCurrentTime');
+            const update = () => {
+                const now = new Date();
+                if (clockEl) {
+                    clockEl.innerText = now.toLocaleDateString('ko-KR') + ' ' + now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                }
+            };
+            update();
+            setInterval(update, 1000);
+        }
+
+        function switchMainTab(centerKey) {
+            document.querySelectorAll('.center-view').forEach(view => view.classList.add('hidden'));
+            document.querySelectorAll('.main-tab-btn').forEach(btn => {
+                btn.classList.remove('border-slate-900', 'text-slate-900', 'font-extrabold');
+                btn.classList.add('border-transparent', 'text-slate-500');
+            });
+
+            const activeCenter = document.getElementById(`center-${centerKey}`);
+            const activeBtn = document.getElementById(`mainTab-${centerKey}`);
+            if (activeCenter) activeCenter.classList.remove('hidden');
+            if (activeBtn) {
+                activeBtn.classList.remove('border-transparent', 'text-slate-500');
+                activeBtn.classList.add('border-slate-900', 'text-slate-900', 'font-extrabold');
+            }
+
+            if (centerKey === 'abc') updateAbcDashboard();
+            if (centerKey === 'freq') updateFreqDashboard();
+            if (centerKey === 'duration') updateDurationDashboard();
+        }
+
+        function switchSubTab(type, subKey) {
+            document.querySelectorAll(`.subview-${type}`).forEach(v => v.classList.add('hidden'));
+            document.querySelectorAll(`.subtab-btn-${type}`).forEach(b => {
+                b.classList.remove('bg-white', 'text-slate-900', 'shadow-xs');
+                b.classList.add('text-slate-600');
+            });
+
+            const targetView = document.getElementById(`subView-${type}-${subKey}`);
+            const targetBtn = document.getElementById(`subTabBtn-${type}-${subKey}`);
+            if (targetView) targetView.classList.remove('hidden');
+            if (targetBtn) {
+                targetBtn.classList.remove('text-slate-600');
+                targetBtn.classList.add('bg-white', 'text-slate-900', 'shadow-xs');
+            }
+
+            if (subKey === 'dashboard') {
+                if (type === 'abc') updateAbcDashboard();
+                if (type === 'freq') updateFreqDashboard();
+                if (type === 'duration') updateDurationDashboard();
+            }
+        }
+
+        function initStudentSelect() {
+            const sel = document.getElementById('studentSelect');
+            sel.innerHTML = '';
+            APP_DATA.students.forEach(st => {
+                const opt = document.createElement('option');
+                opt.value = st.id;
+                opt.textContent = st.name;
+                if (st.id === APP_DATA.currentStudentId) opt.selected = true;
+                sel.appendChild(opt);
+            });
+
+            sel.onchange = function() {
+                APP_DATA.currentStudentId = this.value;
+                renderAllForCurrentStudent();
+                showToast(`[${getCurrentStudentName()}] 학생 관찰로 전환되었습니다.`);
+            };
+
+            renderModalStudentList();
+        }
+
+        function getCurrentStudentName() {
+            const st = APP_DATA.students.find(s => s.id === APP_DATA.currentStudentId);
+            return st ? st.name : '미선택';
+        }
+
+        function ensureStudentBuckets(sId) {
+            if (!APP_DATA.abcRecords[sId]) APP_DATA.abcRecords[sId] = [];
+            if (!APP_DATA.freqRecords[sId]) APP_DATA.freqRecords[sId] = [];
+            if (!APP_DATA.durationRecords[sId]) APP_DATA.durationRecords[sId] = [];
+        }
+
+        function renderAllForCurrentStudent() {
+            ensureStudentBuckets(APP_DATA.currentStudentId);
+            renderAbcRecords();
+            renderFrequencyBehaviors();
+            renderFrequencyLog();
+            renderMultiStopwatches();
+            renderDurationRecords();
+            updateAbcDashboard();
+            updateFreqDashboard();
+            updateDurationDashboard();
+        }
+
+        function openTargetBehaviorManageModal() {
+            renderTargetBehaviorManageList();
+            document.getElementById('targetBehaviorManageModal').classList.remove('hidden');
+        }
+
+        function closeTargetBehaviorManageModal() {
+            document.getElementById('targetBehaviorManageModal').classList.add('hidden');
+        }
+
+        function renderTargetBehaviorManageList() {
+            const container = document.getElementById('targetBehaviorManageList');
+            const totalCount = document.getElementById('targetBehaviorTotalCount');
+            if (!container) return;
+
+            totalCount.innerText = APP_DATA.targetBehaviors.length;
+
+            if (APP_DATA.targetBehaviors.length === 0) {
+                container.innerHTML = '<div class="text-center text-slate-400 py-6 text-xs">등록된 표적 행동이 없습니다. 상단에서 추가해주세요.</div>';
+                return;
+            }
+
+            container.innerHTML = APP_DATA.targetBehaviors.map((tb, idx) => `
+                <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
+                    <div class="flex items-center justify-between">
+                        <span class="font-extrabold text-slate-500 text-[11px]">#${idx + 1} 표적 행동</span>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="saveInlineTargetBehavior('${tb.id}')" class="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-md text-[11px] font-bold transition flex items-center">
+                                <i class="fa-solid fa-check mr-1 text-[10px]"></i>수정완료
+                            </button>
+                            <button onclick="deleteTargetBehavior('${tb.id}')" ${APP_DATA.targetBehaviors.length <= 1 ? 'disabled class="px-2 py-1 text-slate-300 cursor-not-allowed"' : 'class="px-2 py-1 text-rose-600 hover:text-rose-800 transition"'} title="행동 삭제">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                        <div class="sm:col-span-4">
+                            <label class="block text-[10px] font-bold text-slate-500 mb-0.5">행동 명칭</label>
+                            <input type="text" id="editTbName_${tb.id}" value="${escapeHtml(tb.name)}" class="w-full text-xs px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg outline-none font-bold text-slate-800 focus:ring-1 focus:ring-slate-900">
+                        </div>
+                        <div class="sm:col-span-8">
+                            <label class="block text-[10px] font-bold text-slate-500 mb-0.5">조작적 정의 (구체적 기준)</label>
+                            <input type="text" id="editTbDesc_${tb.id}" value="${escapeHtml(tb.desc || '')}" class="w-full text-xs px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg outline-none text-slate-700 focus:ring-1 focus:ring-slate-900">
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function handleCreateTargetBehavior(e) {
+            e.preventDefault();
+            const nameInput = document.getElementById('manageNewBehaviorName');
+            const descInput = document.getElementById('manageNewBehaviorDesc');
+            const name = nameInput.value.trim();
+            const desc = descInput.value.trim();
+            if (!name) return;
+
+            const newId = 'tb_' + Date.now();
+            APP_DATA.targetBehaviors.push({ id: newId, name: name, desc: desc });
+
+            nameInput.value = '';
+            descInput.value = '';
+
+            renderTargetBehaviorManageList();
+            renderFrequencyBehaviors();
+            renderMultiStopwatches();
+            showToast(`[${name}] 표적행동이 추가되었습니다.`);
+        }
+
+        function saveInlineTargetBehavior(tbId) {
+            const nameEl = document.getElementById(`editTbName_${tbId}`);
+            const descEl = document.getElementById(`editTbDesc_${tbId}`);
+            if (!nameEl) return;
+
+            const newName = nameEl.value.trim();
+            const newDesc = descEl ? descEl.value.trim() : '';
+
+            if (!newName) {
+                showToast('행동 명칭을 입력해주세요.');
+                return;
+            }
+
+            const tb = APP_DATA.targetBehaviors.find(item => item.id === tbId);
+            if (tb) {
+                tb.name = newName;
+                tb.desc = newDesc;
+                renderTargetBehaviorManageList();
+                renderFrequencyBehaviors();
+                renderMultiStopwatches();
+                showToast(`[${newName}] 수정이 저장되었습니다.`);
+            }
+        }
+
+        function deleteTargetBehavior(tbId) {
+            if (APP_DATA.targetBehaviors.length <= 1) {
+                showToast('최소 한 개의 표적행동은 유지되어야 합니다.');
+                return;
+            }
+
+            const tb = APP_DATA.targetBehaviors.find(item => item.id === tbId);
+            const tbName = tb ? tb.name : '';
+
+            // Clean up any running stopwatch for this behavior
+            if (MULTI_TIMERS[tbId] && MULTI_TIMERS[tbId].intervalId) {
+                clearInterval(MULTI_TIMERS[tbId].intervalId);
+            }
+            delete MULTI_TIMERS[tbId];
+
+            APP_DATA.targetBehaviors = APP_DATA.targetBehaviors.filter(item => item.id !== tbId);
+            renderTargetBehaviorManageList();
+            renderFrequencyBehaviors();
+            renderMultiStopwatches();
+            showToast(`[${tbName}] 표적행동이 삭제되었습니다.`);
+        }
+
+        function renderModalStudentList() {
+            const listEl = document.getElementById('modalStudentList');
+            if (!listEl) return;
+            listEl.innerHTML = APP_DATA.students.map(st => {
+                const isCurrent = st.id === APP_DATA.currentStudentId;
+                return `
+                <li class="flex items-center justify-between p-2.5 rounded-xl ${isCurrent ? 'bg-blue-50 border-2 border-blue-400' : 'bg-slate-50 border border-slate-200'} text-xs">
+                    <div class="flex items-center space-x-2 cursor-pointer flex-1" onclick="selectStudentDirectly('${st.id}')">
+                        <span class="w-6 h-6 rounded-md ${isCurrent ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'} flex items-center justify-center font-bold text-[11px]">
+                            ${st.name.charAt(0)}
+                        </span>
+                        <span class="font-black text-slate-900 text-sm">${escapeHtml(st.name)}</span>
+                        ${isCurrent ? '<span class="text-[10px] bg-blue-600 text-white font-bold px-1.5 py-0.5 rounded">현재 선택됨</span>' : ''}
+                    </div>
+                    <button onclick="removeStudent('${st.id}')" ${APP_DATA.students.length <= 1 ? 'disabled class="text-slate-300 cursor-not-allowed"' : 'class="text-rose-600 hover:text-rose-800 p-1"'} title="학생 삭제">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </li>
+            `}).join('');
+        }
+
+        function selectStudentDirectly(stId) {
+            APP_DATA.currentStudentId = stId;
+            initStudentSelect();
+            renderAllForCurrentStudent();
+            closeStudentManageModal();
+            showToast(`[${getCurrentStudentName()}] 학생으로 전환되었습니다.`);
+        }
+
+        function saveAbcRecord(e) {
+            e.preventDefault();
+            const sid = APP_DATA.currentStudentId;
+            const now = new Date();
+            const record = {
+                id: 'abc_' + Date.now(),
+                date: now.toISOString().split('T')[0],
+                time: now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+                context: document.getElementById('abcContext').value || '수업 중',
+                antecedent: document.getElementById('abcAntecedent').value.trim(),
+                behavior: document.getElementById('abcBehavior').value.trim(),
+                consequence: document.getElementById('abcConsequence').value.trim(),
+                hypothesis: document.getElementById('abcHypothesis').value
+            };
+
+            APP_DATA.abcRecords[sid].unshift(record);
+            renderAbcRecords();
+            updateAbcDashboard();
+            document.getElementById('abcForm').reset();
+            showToast('ABC 기록이 추가되었습니다.');
+        }
+
+        function renderAbcRecords() {
+            const sid = APP_DATA.currentStudentId;
+            const list = APP_DATA.abcRecords[sid] || [];
+            const container = document.getElementById('abcRecordsContainer');
+            const badge = document.getElementById('abcCountBadge');
+            badge.innerText = `${list.length}건`;
+
+            if (list.length === 0) {
+                container.innerHTML = `
+                    <div class="h-full flex flex-col items-center justify-center text-slate-400 py-12 text-xs">
+                        등록된 ABC 일화 기록이 없습니다.
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = list.map(item => `
+                <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-2">
+                    <div class="flex items-center justify-between text-slate-500">
+                        <span class="font-bold text-slate-800">${item.date} ${item.time}</span>
+                        <div class="flex items-center space-x-2">
+                            <span class="px-2 py-0.5 rounded bg-slate-200 text-slate-800 font-semibold text-[10px]">${escapeHtml(item.context)}</span>
+                            <button onclick="deleteSingleRecord('abc', '${item.id}')" class="text-slate-400 hover:text-rose-600 transition">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-white p-2.5 rounded-lg border border-slate-200">
+                        <div>
+                            <span class="text-[10px] font-bold text-slate-500 block">선행(A)</span>
+                            <p class="text-slate-800">${escapeHtml(item.antecedent)}</p>
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-bold text-slate-500 block">행동(B)</span>
+                            <p class="text-slate-900 font-bold">${escapeHtml(item.behavior)}</p>
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-bold text-slate-500 block">후속(C)</span>
+                            <p class="text-slate-800">${escapeHtml(item.consequence)}</p>
+                        </div>
+                    </div>
+                    <div class="text-[11px] text-slate-500">
+                        <strong>기능 가설:</strong> <span class="text-slate-900 font-semibold">${item.hypothesis}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateAbcDashboard() {
+            const sid = APP_DATA.currentStudentId;
+            const list = APP_DATA.abcRecords[sid] || [];
+
+            document.getElementById('kpiAbcTotal').innerText = `${list.length}건`;
+
+            const fnCounts = {};
+            const antCounts = {};
+            const ctxCounts = {};
+
+            list.forEach(r => {
+                fnCounts[r.hypothesis] = (fnCounts[r.hypothesis] || 0) + 1;
+                antCounts[r.antecedent] = (antCounts[r.antecedent] || 0) + 1;
+                if (r.context) ctxCounts[r.context] = (ctxCounts[r.context] || 0) + 1;
+            });
+
+            const topFn = Object.entries(fnCounts).sort((a,b) => b[1] - a[1])[0];
+            const topCtx = Object.entries(ctxCounts).sort((a,b) => b[1] - a[1])[0];
+            document.getElementById('kpiAbcTopFunction').innerText = topFn ? `${topFn[0]} (${topFn[1]}건)` : '기록 없음';
+            document.getElementById('kpiAbcTopContext').innerText = topCtx ? `${topCtx[0]} (${topCtx[1]}건)` : '기록 없음';
+
+            const ctxFn = document.getElementById('chartAbcFunctions');
+            if (ctxFn) {
+                if (CHARTS.abcFunctions) CHARTS.abcFunctions.destroy();
+                CHARTS.abcFunctions = new Chart(ctxFn.getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(fnCounts).length ? Object.keys(fnCounts) : ['기록 없음'],
+                        datasets: [{
+                            data: Object.values(fnCounts).length ? Object.values(fnCounts) : [1],
+                            backgroundColor: ['#0f172a', '#3b82f6', '#10b981', '#f59e0b', '#64748b']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom' } }
+                    }
+                });
+            }
+
+            const sortedAnts = Object.entries(antCounts).sort((a,b) => b[1] - a[1]).slice(0, 5);
+            const ctxAnt = document.getElementById('chartAbcAntecedents');
+            if (ctxAnt) {
+                if (CHARTS.abcAntecedents) CHARTS.abcAntecedents.destroy();
+                CHARTS.abcAntecedents = new Chart(ctxAnt.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: sortedAnts.length ? sortedAnts.map(i => i[0].slice(0, 10)) : ['기록 없음'],
+                        datasets: [{
+                            label: '빈도',
+                            data: sortedAnts.length ? sortedAnts.map(i => i[1]) : [0],
+                            backgroundColor: '#334155',
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: { x: { beginAtZero: true, ticks: { precision: 0 } } },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
+        }
+
+        function renderFrequencyBehaviors() {
+            const grid = document.getElementById('frequencyTargetGrid');
+            const sid = APP_DATA.currentStudentId;
+            const records = APP_DATA.freqRecords[sid] || [];
+
+            grid.innerHTML = APP_DATA.targetBehaviors.map(tb => {
+                const tbRecords = records.filter(r => r.behaviorId === tb.id || r.behaviorName === tb.name);
+                const countL1 = tbRecords.filter(r => r.intensity === 1).length;
+                const countL2 = tbRecords.filter(r => r.intensity === 2).length;
+                const countL3 = tbRecords.filter(r => r.intensity === 3).length;
+                const total = tbRecords.length;
+
+                return `
+                <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-start justify-between">
+                            <div>
+                                <h4 class="text-sm font-bold text-slate-900">${escapeHtml(tb.name)}</h4>
+                                <p class="text-[11px] text-slate-400 mt-0.5 line-clamp-1">${escapeHtml(tb.desc || '')}</p>
+                            </div>
+                            <span class="text-xs font-mono font-bold bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-slate-700">
+                                ${total}회
+                            </span>
+                        </div>
+                        
+                        <div class="grid grid-cols-3 gap-1.5 my-3 text-center text-[10px]">
+                            <div class="bg-emerald-50 text-emerald-900 rounded py-1 border border-emerald-200 font-semibold">
+                                약: <strong>${countL1}</strong>
+                            </div>
+                            <div class="bg-amber-50 text-amber-900 rounded py-1 border border-amber-200 font-semibold">
+                                중: <strong>${countL2}</strong>
+                            </div>
+                            <div class="bg-red-50 text-red-900 rounded py-1 border border-red-200 font-semibold">
+                                강: <strong>${countL3}</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3 distinct high-contrast colors -->
+                    <div class="pt-2 border-t border-slate-100">
+                        <div class="grid grid-cols-3 gap-1.5">
+                            <button onclick="recordFrequency('${tb.id}', '${escapeHtml(tb.name)}', 1)" 
+                                    class="py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-lg transition flex flex-col items-center justify-center">
+                                <span>1단계</span>
+                                <span class="text-[9px] opacity-80">약 (초록)</span>
+                            </button>
+                            <button onclick="recordFrequency('${tb.id}', '${escapeHtml(tb.name)}', 2)" 
+                                    class="py-2 bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-900 font-bold text-xs rounded-lg transition flex flex-col items-center justify-center">
+                                <span>2단계</span>
+                                <span class="text-[9px] opacity-80">중 (노랑)</span>
+                            </button>
+                            <button onclick="recordFrequency('${tb.id}', '${escapeHtml(tb.name)}', 3)" 
+                                    class="py-2 bg-red-600 hover:bg-red-700 active:scale-95 text-white font-bold text-xs rounded-lg transition flex flex-col items-center justify-center">
+                                <span>3단계</span>
+                                <span class="text-[9px] opacity-80">강 (빨강)</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function recordFrequency(bId, bName, intensity) {
+            const sid = APP_DATA.currentStudentId;
+            const now = new Date();
+            const levelNames = { 1: '약(1단계)', 2: '중(2단계)', 3: '강(3단계)' };
+
+            const record = {
+                id: 'freq_' + Date.now(),
+                date: now.toISOString().split('T')[0],
+                time: now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                behaviorId: bId,
+                behaviorName: bName,
+                intensity: intensity,
+                levelName: levelNames[intensity]
+            };
+
+            APP_DATA.freqRecords[sid].unshift(record);
+            renderFrequencyBehaviors();
+            renderFrequencyLog();
+            updateFreqDashboard();
+            showToast(`[${bName}] ${levelNames[intensity]} 기록 완료`);
+        }
+
+        function renderFrequencyLog() {
+            const sid = APP_DATA.currentStudentId;
+            const list = APP_DATA.freqRecords[sid] || [];
+            const container = document.getElementById('frequencyLogList');
+            const badge = document.getElementById('freqCountBadge');
+            badge.innerText = `${list.length}건`;
+
+            if (list.length === 0) {
+                container.innerHTML = `<div class="text-center text-slate-400 py-6 text-xs">발생 기록이 없습니다.</div>`;
+                return;
+            }
+
+            container.innerHTML = list.map(item => {
+                const badgeStyle = item.intensity === 1 ? 'bg-emerald-100 text-emerald-800' :
+                                   item.intensity === 2 ? 'bg-amber-100 text-amber-900' :
+                                   'bg-red-100 text-red-800 font-bold';
+                return `
+                <div class="flex items-center justify-between p-2.5 bg-slate-50 rounded-lg text-xs border border-slate-200">
+                    <div class="flex items-center space-x-3">
+                        <span class="font-mono text-slate-400">${item.time}</span>
+                        <span class="font-bold text-slate-800">${escapeHtml(item.behaviorName)}</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="px-2 py-0.5 rounded text-[10px] ${badgeStyle}">${item.levelName}</span>
+                        <button onclick="deleteSingleRecord('freq', '${item.id}')" class="text-slate-400 hover:text-rose-600 transition">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function updateFreqDashboard() {
+            const sid = APP_DATA.currentStudentId;
+            const list = APP_DATA.freqRecords[sid] || [];
+
+            document.getElementById('kpiFreqTotal').innerText = `${list.length}회`;
+            const highCount = list.filter(r => r.intensity === 3).length;
+            const highRate = list.length ? Math.round((highCount / list.length) * 100) : 0;
+            document.getElementById('kpiFreqHighRiskRate').innerText = `${highRate}% (${highCount}회)`;
+
+            const bCounts = {};
+            list.forEach(r => {
+                bCounts[r.behaviorName] = (bCounts[r.behaviorName] || 0) + 1;
+            });
+            const topB = Object.entries(bCounts).sort((a,b) => b[1] - a[1])[0];
+            document.getElementById('kpiFreqTopBehavior').innerText = topB ? `${topB[0]} (${topB[1]}회)` : '기록 없음';
+
+            const countL1 = list.filter(r => r.intensity === 1).length;
+            const countL2 = list.filter(r => r.intensity === 2).length;
+            const countL3 = highCount;
+
+            const ctxInt = document.getElementById('chartFreqIntensity');
+            if (ctxInt) {
+                if (CHARTS.freqIntensity) CHARTS.freqIntensity.destroy();
+                CHARTS.freqIntensity = new Chart(ctxInt.getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['약 (1단계/초록)', '중 (2단계/노랑)', '강 (3단계/빨강)'],
+                        datasets: [{
+                            data: list.length ? [countL1, countL2, countL3] : [0, 0, 0],
+                            backgroundColor: ['#059669', '#f59e0b', '#dc2626']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom' } }
+                    }
+                });
+            }
+
+            const ctxBeh = document.getElementById('chartFreqBehaviors');
+            if (ctxBeh) {
+                if (CHARTS.freqBehaviors) CHARTS.freqBehaviors.destroy();
+                CHARTS.freqBehaviors = new Chart(ctxBeh.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(bCounts).length ? Object.keys(bCounts) : ['기록 없음'],
+                        datasets: [{
+                            label: '발생 횟수',
+                            data: Object.values(bCounts).length ? Object.values(bCounts) : [0],
+                            backgroundColor: '#2563eb',
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
+        }
+
+        function renderMultiStopwatches() {
+            const grid = document.getElementById('durationStopwatchGrid');
+            const manualSel = document.getElementById('manualDurationBehaviorSelect');
+            if (!grid) return;
+
+            if (manualSel) {
+                manualSel.innerHTML = APP_DATA.targetBehaviors.map(tb => `<option value="${escapeHtml(tb.name)}">${escapeHtml(tb.name)}</option>`).join('');
+            }
+
+            APP_DATA.targetBehaviors.forEach(tb => {
+                if (!MULTI_TIMERS[tb.id]) {
+                    MULTI_TIMERS[tb.id] = {
+                        running: false,
+                        startTime: null,
+                        elapsedMs: 0,
+                        intervalId: null
+                    };
+                }
+            });
+
+            grid.innerHTML = APP_DATA.targetBehaviors.map(tb => {
+                const t = MULTI_TIMERS[tb.id];
+                const isRunning = t && t.running;
+                const timeString = formatMillisecondsToStopwatch(t ? t.elapsedMs : 0);
+
+                return `
+                <div id="timerCard_${tb.id}" class="bg-white border ${isRunning ? 'border-emerald-500 shadow-md ring-1 ring-emerald-300' : 'border-slate-200'} rounded-2xl p-4 transition flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-start justify-between mb-2">
+                            <div>
+                                <h4 class="text-xs sm:text-sm font-bold text-slate-900">${escapeHtml(tb.name)}</h4>
+                                <p class="text-[11px] text-slate-400 line-clamp-1">${escapeHtml(tb.desc || '')}</p>
+                            </div>
+                            <span id="badgeTimerStatus_${tb.id}" class="text-[10px] font-bold px-2 py-0.5 rounded ${isRunning ? 'bg-red-100 text-red-700 animate-pulse' : 'bg-slate-100 text-slate-500'}">
+                                ${isRunning ? '계측 중' : '대기'}
+                            </span>
+                        </div>
+
+                        <!-- Stopwatch Screen -->
+                        <div class="bg-slate-900 text-white rounded-xl p-3 my-3 text-center">
+                            <div class="text-[9px] uppercase tracking-wider text-slate-400 font-mono">STOPWATCH</div>
+                            <div id="displayTimer_${tb.id}" class="text-2xl font-mono font-black text-emerald-400 tracking-wider">
+                                ${timeString}
+                            </div>
+                            <div id="metaTimer_${tb.id}" class="text-[10px] text-slate-400 mt-0.5 truncate">
+                                ${isRunning ? '시작: ' + new Date(t.startTime).toLocaleTimeString() : '정지 상태'}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Independent Control Buttons -->
+                    <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+                        <button id="btnStart_${tb.id}" onclick="startIndividualStopwatch('${tb.id}', '${escapeHtml(tb.name)}')" 
+                                ${isRunning ? 'disabled class="py-2 bg-slate-200 text-slate-400 font-bold rounded-lg text-xs cursor-not-allowed"' : 'class="py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs transition flex items-center justify-center"'}>
+                            <i class="fa-solid fa-play mr-1 text-[10px]"></i>시작
+                        </button>
+                        <button id="btnStop_${tb.id}" onclick="stopIndividualStopwatch('${tb.id}', '${escapeHtml(tb.name)}')" 
+                                ${!isRunning ? 'disabled class="py-2 bg-slate-200 text-slate-400 font-bold rounded-lg text-xs cursor-not-allowed"' : 'class="py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg text-xs transition flex items-center justify-center"'}>
+                            <i class="fa-solid fa-stop mr-1 text-[10px]"></i>종료&저장
+                        </button>
+                    </div>
+                </div>`;
+            }).join('');
+
+            updateActiveTimersBadge();
+        }
+
+        function startIndividualStopwatch(tbId, tbName) {
+            const timer = MULTI_TIMERS[tbId];
+            if (!timer || timer.running) return;
+
+            timer.running = true;
+            timer.startTime = Date.now();
+            timer.elapsedMs = 0;
+
+            const card = document.getElementById(`timerCard_${tbId}`);
+            const display = document.getElementById(`displayTimer_${tbId}`);
+            const meta = document.getElementById(`metaTimer_${tbId}`);
+            const badge = document.getElementById(`badgeTimerStatus_${tbId}`);
+            const startBtn = document.getElementById(`btnStart_${tbId}`);
+            const stopBtn = document.getElementById(`btnStop_${tbId}`);
+
+            if (card) card.className = "bg-white border border-emerald-500 shadow-md ring-1 ring-emerald-300 rounded-2xl p-4 transition flex flex-col justify-between";
+            if (badge) {
+                badge.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-red-100 text-red-700 animate-pulse";
+                badge.innerText = "계측 중";
+            }
+            if (meta) meta.innerText = "시작: " + new Date(timer.startTime).toLocaleTimeString();
+
+            if (startBtn) {
+                startBtn.disabled = true;
+                startBtn.className = "py-2 bg-slate-200 text-slate-400 font-bold rounded-lg text-xs cursor-not-allowed";
+            }
+            if (stopBtn) {
+                stopBtn.disabled = false;
+                stopBtn.className = "py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg text-xs transition flex items-center justify-center";
+            }
+
+            timer.intervalId = setInterval(() => {
+                timer.elapsedMs = Date.now() - timer.startTime;
+                if (display) display.innerText = formatMillisecondsToStopwatch(timer.elapsedMs);
+            }, 100);
+
+            updateActiveTimersBadge();
+            showToast(`[${tbName}] 스톱워치가 시작되었습니다.`);
+        }
+
+        function stopIndividualStopwatch(tbId, tbName) {
+            const timer = MULTI_TIMERS[tbId];
+            if (!timer || !timer.running) return;
+
+            clearInterval(timer.intervalId);
+            timer.running = false;
+
+            const endTime = Date.now();
+            const elapsedMs = endTime - timer.startTime;
+            const elapsedSeconds = Math.max(1, Math.round(elapsedMs / 1000));
+            const formatted = formatSecondsToKorean(elapsedSeconds);
+            const sid = APP_DATA.currentStudentId;
+
+            const record = {
+                id: 'dur_' + Date.now(),
+                date: new Date().toISOString().split('T')[0],
+                startTime: new Date(timer.startTime).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                endTime: new Date(endTime).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                behaviorName: tbName,
+                durationSeconds: elapsedSeconds,
+                durationFormatted: formatted
+            };
+
+            APP_DATA.durationRecords[sid].unshift(record);
+            timer.elapsedMs = 0;
+
+            const card = document.getElementById(`timerCard_${tbId}`);
+            const display = document.getElementById(`displayTimer_${tbId}`);
+            const meta = document.getElementById(`metaTimer_${tbId}`);
+            const badge = document.getElementById(`badgeTimerStatus_${tbId}`);
+            const startBtn = document.getElementById(`btnStart_${tbId}`);
+            const stopBtn = document.getElementById(`btnStop_${tbId}`);
+
+            if (card) card.className = "bg-white border border-slate-200 rounded-2xl p-4 transition flex flex-col justify-between";
+            if (badge) {
+                badge.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-500";
+                badge.innerText = "대기";
+            }
+            if (meta) meta.innerText = `최근 기록: ${formatted}`;
+            if (display) display.innerText = "00:00:00";
+
+            if (startBtn) {
+                startBtn.disabled = false;
+                startBtn.className = "py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs transition flex items-center justify-center";
+            }
+            if (stopBtn) {
+                stopBtn.disabled = true;
+                stopBtn.className = "py-2 bg-slate-200 text-slate-400 font-bold rounded-lg text-xs cursor-not-allowed";
+            }
+
+            updateActiveTimersBadge();
+            renderDurationRecords();
+            updateDurationDashboard();
+            showToast(`[${tbName}] 지속시간 기록 완료 (${formatted})`);
+        }
+
+        function updateActiveTimersBadge() {
+            const badge = document.getElementById('activeTimersCountBadge');
+            if (!badge) return;
+            const activeCount = Object.values(MULTI_TIMERS).filter(t => t.running).length;
+            if (activeCount > 0) {
+                badge.classList.remove('hidden');
+                badge.innerText = `${activeCount}개 동시 계측 중`;
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        function addManualDurationRecord() {
+            const sel = document.getElementById('manualDurationBehaviorSelect');
+            const input = document.getElementById('manualDurationSeconds');
+            const sec = parseInt(input.value, 10);
+            if (!sec || sec <= 0) {
+                showToast('초(sec) 단위 숫자를 입력해주세요.');
+                return;
+            }
+            const sid = APP_DATA.currentStudentId;
+            const now = new Date();
+            const bName = sel.value || '지정되지 않은 행동';
+
+            const record = {
+                id: 'dur_' + Date.now(),
+                date: now.toISOString().split('T')[0],
+                startTime: now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                endTime: '(수동입력)',
+                behaviorName: bName,
+                durationSeconds: sec,
+                durationFormatted: formatSecondsToKorean(sec)
+            };
+
+            APP_DATA.durationRecords[sid].unshift(record);
+            renderDurationRecords();
+            updateDurationDashboard();
+            input.value = '';
+            showToast(`[${bName}] 지속시간 ${record.durationFormatted} 수동 기록 완료`);
+        }
+
+        function formatMillisecondsToStopwatch(ms) {
+            const totalSec = Math.floor(ms / 1000);
+            const hours = Math.floor(totalSec / 3600);
+            const mins = Math.floor((totalSec % 3600) / 60);
+            const secs = totalSec % 60;
+            return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+
+        function formatSecondsToKorean(sec) {
+            if (sec < 60) return `${sec}초`;
+            const m = Math.floor(sec / 60);
+            const s = sec % 60;
+            return s > 0 ? `${m}분 ${s}초` : `${m}분`;
+        }
+
+        function renderDurationRecords() {
+            const sid = APP_DATA.currentStudentId;
+            const list = APP_DATA.durationRecords[sid] || [];
+            const container = document.getElementById('durationRecordsContainer');
+            const badge = document.getElementById('durationCountBadge');
+            badge.innerText = `${list.length}건`;
+
+            if (list.length === 0) {
+                container.innerHTML = `<div class="h-full flex flex-col items-center justify-center text-slate-400 py-8 text-xs">기록된 지속시간 데이터가 없습니다.</div>`;
+                return;
+            }
+
+            container.innerHTML = list.map(item => `
+                <div class="p-2.5 bg-slate-50 rounded-lg border border-slate-200 text-xs flex items-center justify-between">
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <span class="font-bold text-slate-800">${escapeHtml(item.behaviorName)}</span>
+                            <span class="text-[11px] font-mono text-slate-400">${item.date} ${item.startTime}</span>
+                        </div>
+                        <div class="text-[11px] text-slate-500 mt-0.5">종료: ${item.endTime}</div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold font-mono text-xs">
+                            ${item.durationFormatted}
+                        </span>
+                        <button onclick="deleteSingleRecord('duration', '${item.id}')" class="text-slate-400 hover:text-rose-600 transition">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateDurationDashboard() {
+            const sid = APP_DATA.currentStudentId;
+            const list = APP_DATA.durationRecords[sid] || [];
+
+            const totalSec = list.reduce((acc, c) => acc + (c.durationSeconds || 0), 0);
+            const avgSec = list.length ? Math.round(totalSec / list.length) : 0;
+            const maxSec = list.length ? Math.max(...list.map(c => c.durationSeconds || 0)) : 0;
+
+            document.getElementById('kpiDurationTotal').innerText = formatSecondsToKorean(totalSec);
+            document.getElementById('kpiDurationAvg').innerText = formatSecondsToKorean(avgSec);
+            document.getElementById('kpiDurationMax').innerText = formatSecondsToKorean(maxSec);
+
+            const recentTimeline = list.slice(0, 10).reverse();
+            const ctxLine = document.getElementById('chartDurationTimeline');
+            if (ctxLine) {
+                if (CHARTS.durationTimeline) CHARTS.durationTimeline.destroy();
+                CHARTS.durationTimeline = new Chart(ctxLine.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: recentTimeline.length ? recentTimeline.map(r => r.startTime) : ['기록 없음'],
+                        datasets: [{
+                            label: '지속시간 (초)',
+                            data: recentTimeline.length ? recentTimeline.map(r => r.durationSeconds) : [0],
+                            borderColor: '#059669',
+                            backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                            fill: true,
+                            tension: 0.3,
+                            pointRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+            }
+
+            const durByB = {};
+            list.forEach(r => {
+                durByB[r.behaviorName] = (durByB[r.behaviorName] || 0) + (r.durationSeconds || 0);
+            });
+            const ctxPie = document.getElementById('chartDurationByBehavior');
+            if (ctxPie) {
+                if (CHARTS.durationByBehavior) CHARTS.durationByBehavior.destroy();
+                CHARTS.durationByBehavior = new Chart(ctxPie.getContext('2d'), {
+                    type: 'pie',
+                    data: {
+                        labels: Object.keys(durByB).length ? Object.keys(durByB) : ['기록 없음'],
+                        datasets: [{
+                            data: Object.values(durByB).length ? Object.values(durByB) : [0],
+                            backgroundColor: ['#059669', '#0284c7', '#d97706', '#475569', '#dc2626']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom' } }
+                    }
+                });
+            }
+        }
+
+        async function runAiAnalysisForAbc() {
+            const sid = APP_DATA.currentStudentId;
+            const studentName = getCurrentStudentName();
+            const list = APP_DATA.abcRecords[sid] || [];
+
+            if (list.length === 0) {
+                showToast('분석할 ABC 일화 기록이 없습니다.');
+                return;
+            }
+
+            const btn = document.getElementById('btnAiAbc');
+            const status = document.getElementById('statusAiAbc');
+            btn.disabled = true;
+            status.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>분석 중...';
+
+            const summary = list.map(a => `[${a.date} ${a.time} / 장소: ${a.context}] 선행사건: ${a.antecedent} -> 행동: ${a.behavior} -> 후속결과: ${a.consequence} (추정기능: ${a.hypothesis})`).join('\n');
+
+            const systemPrompt = `당신은 초등/특수교육 긍정적 행동지원(PBS) 임상 전문가입니다.
+사용자가 제공한 학생의 ABC 관찰 일화를 기반으로 다음 3개 키를 갖는 JSON 형식으로만 응답하세요:
+{
+  "functionAnalysis": "선행사건-행동-후속결과 인과 연쇄 및 행동의 기능(가설) 분석",
+  "interventionAdvice": "선행사건 예방 환경 수정 및 대체행동 교수 전략",
+  "parentCounselingTips": "학부모 상담 공유 요점 및 가정 연계 지도 가이드"
+}`;
+
+            const userPrompt = `학생 [${studentName}]의 누적 ABC 관찰 일화:\n${summary}\n\n위 데이터에 입각한 전문 분석과 학부모 상담 요점을 작성해주세요.`;
+
+            try {
+                const data = await callGeminiApi(systemPrompt, userPrompt);
+                document.getElementById('aiAbcPlaceholder').classList.add('hidden');
+                document.getElementById('aiAbcResults').classList.remove('hidden');
+
+                document.getElementById('aiAbcOutputFunc').innerText = data.functionAnalysis || '분석 없음';
+                document.getElementById('aiAbcOutputIntervention').innerText = data.interventionAdvice || '조언 없음';
+                document.getElementById('aiAbcOutputParent').innerText = data.parentCounselingTips || '상담 요점 없음';
+
+                status.innerHTML = '<span class="text-emerald-400">완료</span>';
+                showToast('ABC 분석 리포트가 생성되었습니다.');
+            } catch (err) {
+                status.innerHTML = `<span class="text-rose-300">오류: ${err.message}</span>`;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function runAiAnalysisForFreq() {
+            const sid = APP_DATA.currentStudentId;
+            const studentName = getCurrentStudentName();
+            const list = APP_DATA.freqRecords[sid] || [];
+
+            if (list.length === 0) {
+                showToast('분석할 빈도 및 강도 기록이 없습니다.');
+                return;
+            }
+
+            const btn = document.getElementById('btnAiFreq');
+            const status = document.getElementById('statusAiFreq');
+            btn.disabled = true;
+            status.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>분석 중...';
+
+            const summary = list.map(f => `[${f.date} ${f.time}] 표적행동: ${f.behaviorName}, 강도수준: ${f.levelName}`).join('\n');
+
+            const systemPrompt = `당신은 학교 행동중재 전문가입니다.
+사용자가 제공한 학생의 표적행동 발생 빈도 및 3단계 강도(1:약/초록, 2:중/노랑, 3:강/빨강) 데이터를 바탕으로 다음 3개 키를 갖는 JSON 형식으로만 응답하세요:
+{
+  "severityAnalysis": "빈도 발생 추세 및 강도 3단계(빨강) 비율 분석",
+  "drlProtocol": "빈도 감축을 위한 차별강화(DRA) 및 교실 대응 수칙",
+  "parentCollaboration": "학부모 상담 공유 요점"
+}`;
+
+            const userPrompt = `학생 [${studentName}]의 빈도 및 3단계 강도 관찰 로그:\n${summary}\n\n위 데이터를 분석하여 중재 방안과 학부모 상담 요점을 작성해주세요.`;
+
+            try {
+                const data = await callGeminiApi(systemPrompt, userPrompt);
+                document.getElementById('aiFreqPlaceholder').classList.add('hidden');
+                document.getElementById('aiFreqResults').classList.remove('hidden');
+
+                document.getElementById('aiFreqOutputFunc').innerText = data.severityAnalysis || '분석 없음';
+                document.getElementById('aiFreqOutputIntervention').innerText = data.drlProtocol || '조언 없음';
+                document.getElementById('aiFreqOutputParent').innerText = data.parentCollaboration || '상담 요점 없음';
+
+                status.innerHTML = '<span class="text-emerald-400">완료</span>';
+                showToast('빈도·강도 분석 리포트가 생성되었습니다.');
+            } catch (err) {
+                status.innerHTML = `<span class="text-rose-300">오류: ${err.message}</span>`;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function runAiAnalysisForDuration() {
+            const sid = APP_DATA.currentStudentId;
+            const studentName = getCurrentStudentName();
+            const list = APP_DATA.durationRecords[sid] || [];
+
+            if (list.length === 0) {
+                showToast('분석할 지속시간 기록이 없습니다.');
+                return;
+            }
+
+            const btn = document.getElementById('btnAiDuration');
+            const status = document.getElementById('statusAiDuration');
+            btn.disabled = true;
+            status.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>분석 중...';
+
+            const summary = list.map(d => `[${d.date} ${d.startTime}~${d.endTime}] 표적행동: ${d.behaviorName}, 지속시간: ${d.durationFormatted} (${d.durationSeconds}초)`).join('\n');
+
+            const systemPrompt = `당신은 행동 중재 전문가입니다.
+사용자가 제공한 학생의 지속시간(스톱워치) 계측 기록을 분석하여 다음 3개 키를 갖는 JSON 형식으로만 응답하세요:
+{
+  "durationCause": "행동 지속 장기화 및 진정 지연 요인 분석",
+  "calmingStrategy": "진정 소요 시간 단축 및 자가진정 교수 전략",
+  "parentGuidance": "학부모 상담 공유 요점 및 가정 지도 팁"
+}`;
+
+            const userPrompt = `학생 [${studentName}]의 지속시간 관찰 로그:\n${summary}\n\n위 데이터를 기반으로 중재안과 학부모 상담 요점을 작성해주세요.`;
+
+            try {
+                const data = await callGeminiApi(systemPrompt, userPrompt);
+                document.getElementById('aiDurationPlaceholder').classList.add('hidden');
+                document.getElementById('aiDurationResults').classList.remove('hidden');
+
+                document.getElementById('aiDurationOutputFunc').innerText = data.durationCause || '분석 없음';
+                document.getElementById('aiDurationOutputIntervention').innerText = data.calmingStrategy || '조언 없음';
+                document.getElementById('aiDurationOutputParent').innerText = data.parentGuidance || '상담 요점 없음';
+
+                status.innerHTML = '<span class="text-emerald-400">완료</span>';
+                showToast('지속시간 분석 리포트가 생성되었습니다.');
+            } catch (err) {
+                status.innerHTML = `<span class="text-rose-300">오류: ${err.message}</span>`;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function callGeminiApi(systemPrompt, userPrompt) {
+            const apiKey = customGeminiApiKey || "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userPrompt }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                    responseMimeType: "application/json"
+                }
+            };
+
+            let response = null;
+            let attempts = 0;
+            const maxAttempts = 3;
+            let delay = 1000;
+
+            while (attempts < maxAttempts) {
+                try {
+                    response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (response.ok) break;
+                } catch (e) {}
+                attempts++;
+                await new Promise(res => setTimeout(res, delay));
+                delay *= 2;
+            }
+
+            if (!response || !response.ok) {
+                throw new Error(`API 호출 실패 (Status: ${response ? response.status : 'No Response'})`);
+            }
+
+            const result = await response.json();
+            const jsonText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (!jsonText) throw new Error("API 응답이 비어있습니다.");
+            return JSON.parse(jsonText);
+        }
+
+        /* ==========================================================================
+           Google Apps Script (GAS) Synchronization & Direct Export
+           ========================================================================== */
+        async function triggerGoogleDriveExport() {
+            const payload = {
+                exportedAt: new Date().toISOString(),
+                students: APP_DATA.students.map(st => ({
+                    id: st.id,
+                    name: st.name,
+                    abcRecords: APP_DATA.abcRecords[st.id] || [],
+                    freqRecords: APP_DATA.freqRecords[st.id] || [],
+                    durationRecords: APP_DATA.durationRecords[st.id] || []
+                }))
+            };
+
+            if (gasWebhookUrl) {
+                showToast('구글 드라이브 구글 시트로 전송 중입니다...');
+                try {
+                    const res = await fetch(gasWebhookUrl, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    showToast('구글 드라이브에 시트가 생성 및 저장되었습니다.');
+                    return;
+                } catch (err) {
+                    showToast('GAS 전송 실패: ' + err.message);
+                }
+            }
+
+            // Fallback if GAS URL not configured yet: Open sheets.new and copy formatted multi-sheet template
+            let clipboardText = "";
+            APP_DATA.students.forEach(student => {
+                const sId = student.id;
+                clipboardText += `========================================================\n`;
+                clipboardText += `[학생별 시트탭: ${student.name}] 행동관찰 기록부\n`;
+                clipboardText += `========================================================\n\n`;
+
+                clipboardText += `[1. ABC 사건 관찰 기록]\n`;
+                clipboardText += `일자\t시각\t장소/교시\t선행사건(A)\t행동(B)\t후속결과(C)\t추정목적\n`;
+                const abcs = APP_DATA.abcRecords[sId] || [];
+                if (abcs.length === 0) clipboardText += `(기록 없음)\n`;
+                else abcs.forEach(a => { clipboardText += `${a.date}\t${a.time}\t${a.context}\t${a.antecedent}\t${a.behavior}\t${a.consequence}\t${a.hypothesis}\n`; });
+                clipboardText += `\n`;
+
+                clipboardText += `[2. 빈도 및 3단계 강도 기록]\n`;
+                clipboardText += `일자\t시각\t표적행동명\t강도수준\t강도명칭\n`;
+                const freqs = APP_DATA.freqRecords[sId] || [];
+                if (freqs.length === 0) clipboardText += `(기록 없음)\n`;
+                else freqs.forEach(f => { clipboardText += `${f.date}\t${f.time}\t${f.behaviorName}\t${f.intensity}\t${f.levelName}\n`; });
+                clipboardText += `\n`;
+
+                clipboardText += `[3. 표적행동별 지속시간 기록]\n`;
+                clipboardText += `일자\t시작시각\t종료시각\t표적행동명\t지속초(sec)\t환산시간\n`;
+                const durs = APP_DATA.durationRecords[sId] || [];
+                if (durs.length === 0) clipboardText += `(기록 없음)\n`;
+                else durs.forEach(d => { clipboardText += `${d.date}\t${d.startTime}\t${d.endTime}\t${d.behaviorName}\t${d.durationSeconds}\t${d.durationFormatted}\n`; });
+                clipboardText += `\n\n`;
+            });
+
+            const tempTa = document.createElement('textarea');
+            tempTa.value = clipboardText;
+            document.body.appendChild(tempTa);
+            tempTa.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempTa);
+
+            window.open('https://sheets.new', '_blank');
+            showToast('새 구글 시트가 열렸습니다. [Ctrl+V]를 누르시면 학생별 데이터가 채워집니다. (GAS URL 등록 시 백그라운드 자동생성 가능)');
+        }
+
+        /* ==========================================================================
+           Settings Modal Controls
+           ========================================================================== */
+        function openSettingsModal() {
+            document.getElementById('gasAppUrlInput').value = gasWebhookUrl;
+            document.getElementById('customApiKeyInput').value = customGeminiApiKey;
+            document.getElementById('settingsModal').classList.remove('hidden');
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settingsModal').classList.add('hidden');
+        }
+
+        function switchSettingsTab(tabKey) {
+            document.getElementById('setTabContent-gas').classList.toggle('hidden', tabKey !== 'gas');
+            document.getElementById('setTabContent-api').classList.toggle('hidden', tabKey !== 'api');
+
+            const btnGas = document.getElementById('setTabBtn-gas');
+            const btnApi = document.getElementById('setTabBtn-api');
+
+            if (tabKey === 'gas') {
+                btnGas.className = 'py-2 border-b-2 border-slate-900 text-slate-900';
+                btnApi.className = 'py-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800';
+            } else {
+                btnApi.className = 'py-2 border-b-2 border-slate-900 text-slate-900';
+                btnGas.className = 'py-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800';
+            }
+        }
+
+        function saveGasSettings() {
+            gasWebhookUrl = document.getElementById('gasAppUrlInput').value.trim();
+            showToast(gasWebhookUrl ? '구글 앱스 스크립트 웹앱 주소가 저장되었습니다.' : '구글 앱스 스크립트 주소가 비워졌습니다.');
+        }
+
+        function saveApiSettings() {
+            customGeminiApiKey = document.getElementById('customApiKeyInput').value.trim();
+            showToast(customGeminiApiKey ? '커스텀 Gemini API Key가 저장되었습니다.' : '기본 API 키 설정으로 복귀되었습니다.');
+        }
+
+        function copyGasScriptCode() {
+            const code = document.getElementById('gasScriptCodeBlock').innerText;
+            const tempTa = document.createElement('textarea');
+            tempTa.value = code;
+            document.body.appendChild(tempTa);
+            tempTa.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempTa);
+            showToast('Google Apps Script 코드가 클립보드에 복사되었습니다.');
+        }
+
+        /* ==========================================================================
+           Student & Behavior Management Modals
+           ========================================================================== */
+        function openStudentManageModal() {
+            renderModalStudentList();
+            document.getElementById('studentManageModal').classList.remove('hidden');
+        }
+
+        function closeStudentManageModal() {
+            document.getElementById('studentManageModal').classList.add('hidden');
+        }
+
+        function renderModalStudentList() {
+            const listEl = document.getElementById('modalStudentList');
+            if (!listEl) return;
+            listEl.innerHTML = APP_DATA.students.map(st => `
+                <li class="flex items-center justify-between p-2 rounded-lg bg-slate-50 text-xs border border-slate-200">
+                    <span class="font-bold text-slate-800">${escapeHtml(st.name)}</span>
+                    <button onclick="removeStudent('${st.id}')" ${APP_DATA.students.length <= 1 ? 'disabled class="text-slate-300 cursor-not-allowed"' : 'class="text-rose-600 hover:text-rose-800"'}>
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </li>
+            `).join('');
+        }
+
+        function addNewStudent() {
+            const input = document.getElementById('newStudentInput');
+            const name = input.value.trim();
+            if (!name) return;
+            const newId = 'student_' + Date.now();
+            APP_DATA.students.push({ id: newId, name: name });
+            APP_DATA.currentStudentId = newId;
+            ensureStudentBuckets(newId);
+            initStudentSelect();
+            renderAllForCurrentStudent();
+            input.value = '';
+            showToast(`[${name}] 학생이 추가되었습니다.`);
+        }
+
+        function removeStudent(stId) {
+            if (APP_DATA.students.length <= 1) {
+                showToast('최소 한 명의 학생은 유지되어야 합니다.');
+                return;
+            }
+            APP_DATA.students = APP_DATA.students.filter(s => s.id !== stId);
+            if (APP_DATA.currentStudentId === stId) {
+                APP_DATA.currentStudentId = APP_DATA.students[0].id;
+            }
+            initStudentSelect();
+            renderAllForCurrentStudent();
+            renderModalStudentList();
+            showToast('학생이 삭제되었습니다.');
+        }
+
+        function openTargetBehaviorModal() {
+            document.getElementById('targetBehaviorModal').classList.remove('hidden');
+        }
+
+        function closeTargetBehaviorModal() {
+            document.getElementById('targetBehaviorModal').classList.add('hidden');
+        }
+
+        function saveNewTargetBehavior(e) {
+            e.preventDefault();
+            const name = document.getElementById('newBehaviorName').value.trim();
+            const desc = document.getElementById('newBehaviorDesc').value.trim();
+            if (!name) return;
+
+            const newId = 'tb_' + Date.now();
+            APP_DATA.targetBehaviors.push({ id: newId, name: name, desc: desc });
+
+            renderFrequencyBehaviors();
+            renderMultiStopwatches();
+            closeTargetBehaviorModal();
+            document.getElementById('newBehaviorName').value = '';
+            document.getElementById('newBehaviorDesc').value = '';
+            showToast(`[${name}] 표적행동 등록 완료 (스톱워치 자동 연동)`);
+        }
+
+        function deleteSingleRecord(type, id) {
+            const sid = APP_DATA.currentStudentId;
+            if (type === 'abc') {
+                APP_DATA.abcRecords[sid] = APP_DATA.abcRecords[sid].filter(r => r.id !== id);
+                renderAbcRecords();
+                updateAbcDashboard();
+            } else if (type === 'freq') {
+                APP_DATA.freqRecords[sid] = APP_DATA.freqRecords[sid].filter(r => r.id !== id);
+                renderFrequencyBehaviors();
+                renderFrequencyLog();
+                updateFreqDashboard();
+            } else if (type === 'duration') {
+                APP_DATA.durationRecords[sid] = APP_DATA.durationRecords[sid].filter(r => r.id !== id);
+                renderDurationRecords();
+                updateDurationDashboard();
+            }
+            showToast('기록이 삭제되었습니다.');
+        }
+
+        function clearStudentRecords(type) {
+            const sid = APP_DATA.currentStudentId;
+            const sName = getCurrentStudentName();
+            if (type === 'abc') {
+                APP_DATA.abcRecords[sid] = [];
+                renderAbcRecords();
+                updateAbcDashboard();
+            } else if (type === 'freq') {
+                APP_DATA.freqRecords[sid] = [];
+                renderFrequencyBehaviors();
+                renderFrequencyLog();
+                updateFreqDashboard();
+            } else if (type === 'duration') {
+                APP_DATA.durationRecords[sid] = [];
+                renderDurationRecords();
+                updateDurationDashboard();
+            }
+            showToast(`[${sName}] 학생의 해당 기록이 초기화되었습니다.`);
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            const msgEl = document.getElementById('toastMsg');
+            msgEl.innerText = msg;
+            toast.classList.remove('translate-y-24', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-24', 'opacity-0');
+            }, 2500);
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>"']/g, function(m) {
+                return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[m];
+            });
+        }
+    </script>
+</body>
+</html>
